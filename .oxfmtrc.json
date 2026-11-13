@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.moon/cache/**",
+    "**/.playwright-mcp/**",
+    ".boundaries-*.json",
+    "**/dist/**",
+    "**/build/**",
+    "**/.tanstack/**",
+    "**/routeTree.gen.ts",
+    "pnpm-lock.yaml"
+  ]
+}

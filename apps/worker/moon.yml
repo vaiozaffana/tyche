@@ -1,0 +1,123 @@
+language: "python"
+layer: "application"
+
+tasks:
+  dev:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "celery",
+        "-A",
+        "worker.app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+      ]
+    options:
+      cache: false
+      persistent: true
+  start:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "celery",
+        "-A",
+        "worker.app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+      ]
+    options:
+      cache: false
+      persistent: true
+  build:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "python", "-m", "compileall", "-q", "src"]
+    inputs: ["src/**/*"]
+  lint:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+      ]
+    inputs: ["src/**/*", "tests/**/*", "pyproject.toml"]
+  typecheck:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "mypy",
+        "--config-file",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+      ]
+    inputs: ["src/**/*", "tests/**/*", "pyproject.toml"]
+  test:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "pytest"]
+    inputs: ["src/**/*", "tests/**/*", "pyproject.toml"]
+  lint-fix:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--fix",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format-check:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+      ]

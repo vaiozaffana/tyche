@@ -1,0 +1,34 @@
+language: "typescript"
+layer: "application"
+
+tasks:
+  dev:
+    command: "pnpm"
+    args: ["dev"]
+    options:
+      cache: false
+      persistent: true
+  build:
+    command: "pnpm"
+    args: ["build"]
+    inputs: ["src/**/*", "public/**/*", "index.html", "vite.config.ts"]
+    outputs: ["dist"]
+  bundle-check:
+    command: "pnpm"
+    args: ["exec", "wrangler", "deploy", "--dry-run"]
+    deps: ["build"]
+  deploy:
+    command: "pnpm"
+    args: ["deploy"]
+    deps: ["build"]
+    options:
+      cache: false
+      runInCI: false
+  test:
+    command: "pnpm"
+    args: ["test"]
+    inputs: ["src/**/*"]
+  typecheck:
+    command: "pnpm"
+    args: ["typecheck"]
+    inputs: ["src/**/*", "tsconfig.json"]

@@ -1,0 +1,141 @@
+language: "python"
+layer: "application"
+
+tasks:
+  dev:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "uvicorn",
+        "api.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+    options:
+      cache: false
+      persistent: true
+  start:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "uvicorn",
+        "api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+    options:
+      cache: false
+      persistent: true
+  build:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "python", "-m", "compileall", "-q", "src"]
+    inputs: ["src/**/*"]
+  lint:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+        "scripts",
+        "../../scripts/check_env.py",
+      ]
+    inputs: ["src/**/*", "tests/**/*", "scripts/**/*", "/scripts/check_env.py", "pyproject.toml"]
+  typecheck:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "mypy",
+        "--config-file",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+        "../../scripts/check_env.py",
+      ]
+    inputs: ["src/**/*", "tests/**/*", "/scripts/check_env.py", "pyproject.toml"]
+  test:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "pytest"]
+    inputs: ["src/**/*", "tests/**/*", "pyproject.toml"]
+  lint-fix:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--fix",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+        "scripts",
+        "../../scripts/check_env.py",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+        "scripts",
+        "../../scripts/check_env.py",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format-check:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "tests",
+        "scripts",
+        "../../scripts/check_env.py",
+      ]
+  createsuperuser:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "python", "scripts/createsuperuser.py"]
+    options:
+      cache: false
+      runInCI: false

@@ -1,0 +1,96 @@
+language: "python"
+layer: "library"
+
+tasks:
+  lint:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "migrations",
+      ]
+  typecheck:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "mypy",
+        "--config-file",
+        "../../pyproject.toml",
+        "src",
+      ]
+  lint-fix:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--fix",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "migrations",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "migrations",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format-check:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+        "migrations",
+      ]
+  migration-check:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "alembic", "heads"]
+  migrate:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "alembic", "upgrade", "head"]
+    options:
+      cache: false
+      runInCI: false
+  generate:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "alembic", "revision", "--autogenerate"]
+    options:
+      cache: false
+      interactive: true
+      runInCI: false

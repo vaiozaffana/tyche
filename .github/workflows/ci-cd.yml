@@ -1,0 +1,93 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/monorepo_template
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: monorepo_template
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d monorepo_template"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up Moon toolchains
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: Check formatting, linting, boundaries, and environment docs
+        run: >-
+          moon run
+          root:check-boundaries root:check-env root:lint root:format-check
+          api:lint api:format-check worker:lint worker:format-check
+          db:lint db:format-check queue:lint queue:format-check
+
+      - name: Typecheck
+        run: >-
+          moon run
+          root:typecheck-js api:typecheck worker:typecheck db:typecheck queue:typecheck
+
+      - name: Test
+        run: moon run root:test-js api:test worker:test
+
+      - name: Validate and apply database migrations
+        run: moon run db:migration-check db:migrate
+
+      - name: Build applications and validate Cloudflare bundle
+        run: moon run api:build worker:build web:build web:bundle-check
+
+      - name: Build API and worker container image
+        run: docker build --tag monorepo-template-python:ci .
+
+  cd:
+    name: Deployment placeholder
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Log deployment placeholder
+        run: echo "CD placeholder — deployment would run for commit $GITHUB_SHA"

@@ -1,0 +1,15 @@
+projects:
+  root: "."
+  api: "apps/api"
+  web: "apps/web"
+  worker: "apps/worker"
+  api-client: "packages/api-client"
+  contracts: "packages/contracts"
+  db: "packages/db"
+  queue: "packages/queue"
+  storage: "packages/storage"
+  ui: "packages/ui"
+
+vcs:
+  defaultBranch: "main"
+  provider: "github"

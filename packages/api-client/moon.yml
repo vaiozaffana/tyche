@@ -1,0 +1,12 @@
+language: "typescript"
+layer: "library"
+
+tasks:
+  test:
+    command: "pnpm"
+    args: ["test"]
+    inputs: ["src/**/*", "package.json"]
+  typecheck:
+    command: "pnpm"
+    args: ["typecheck"]
+    inputs: ["src/**/*", "tsconfig.json", "package.json"]

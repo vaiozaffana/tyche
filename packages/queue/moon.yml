@@ -1,0 +1,76 @@
+language: "python"
+layer: "library"
+
+tasks:
+  lint:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+      ]
+  typecheck:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "mypy",
+        "--config-file",
+        "../../pyproject.toml",
+        "src",
+      ]
+  lint-fix:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "check",
+        "--fix",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+      ]
+    options:
+      cache: false
+      runInCI: false
+  format-check:
+    command: "uv"
+    args:
+      [
+        "run",
+        "--all-packages",
+        "--all-groups",
+        "ruff",
+        "format",
+        "--check",
+        "--config",
+        "../../pyproject.toml",
+        "src",
+      ]

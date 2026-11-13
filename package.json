@@ -1,0 +1,29 @@
+{
+  "name": "monorepo-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:all": "moon run root:install",
+    "dev": "moon run api:dev web:dev worker:dev",
+    "deploy:web": "moon run web:deploy",
+    "build": "moon run api:build worker:build web:build",
+    "test": "moon run api:test worker:test root:test-js",
+    "typecheck": "moon run api:typecheck worker:typecheck db:typecheck queue:typecheck root:typecheck-js",
+    "check": "moon run root:check-boundaries root:check-env root:lint root:format-check api:lint api:format-check worker:lint worker:format-check db:lint db:format-check queue:lint queue:format-check",
+    "check:fix": "moon run root:lint-fix root:format api:lint-fix api:format worker:lint-fix worker:format db:lint-fix db:format queue:lint-fix queue:format",
+    "format": "moon run root:format api:format worker:format db:format queue:format",
+    "lint": "moon run root:lint api:lint worker:lint db:lint queue:lint",
+    "createsuperuser": "moon run api:createsuperuser",
+    "db:generate": "moon run db:generate",
+    "db:deploy": "moon run db:migrate",
+    "db:migrate": "moon run db:migrate"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "typescript": "catalog:",
+    "vitest": "^5.0.3"
+  },
+  "packageManager": "pnpm@10.30.3"
+}

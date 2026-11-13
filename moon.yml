@@ -1,0 +1,46 @@
+language: "javascript"
+layer: "tool"
+
+tasks:
+  install:
+    command: "pnpm"
+    args: ["install"]
+    options:
+      cache: false
+      runInCI: false
+  check-boundaries:
+    command: "node"
+    args: ["scripts/check-boundaries.mjs"]
+    inputs: ["apps/web/src/**/*", "packages/*/src/**/*", "scripts/check-boundaries.mjs"]
+  check-env:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "python", "scripts/check_env.py"]
+    inputs: [".env.example", "apps/api/src/**/*", "apps/worker/src/**/*", "scripts/check_env.py"]
+  format:
+    command: "pnpm"
+    args: ["exec", "oxfmt", "--write", "."]
+    options:
+      cache: false
+      runInCI: false
+  format-check:
+    command: "pnpm"
+    args: ["exec", "oxfmt", "--check", "."]
+    inputs: ["apps/web/src/**/*", "packages/*/src/**/*", "scripts/**/*", "*.json", "*.md"]
+  lint:
+    command: "pnpm"
+    args: ["exec", "oxlint", "--deny-warnings", "."]
+    inputs: ["apps/web/src/**/*", "packages/*/src/**/*", "scripts/**/*.mjs"]
+  lint-fix:
+    command: "pnpm"
+    args: ["exec", "oxlint", "--fix", "--deny-warnings", "."]
+    options:
+      cache: false
+      runInCI: false
+  test-js:
+    command: "pnpm"
+    args: ["-r", "--if-present", "test"]
+    inputs: ["apps/web/src/**/*", "packages/*/src/**/*"]
+  typecheck-js:
+    command: "pnpm"
+    args: ["-r", "--if-present", "typecheck"]
+    inputs: ["apps/web/src/**/*", "packages/*/src/**/*", "**/tsconfig.json"]
