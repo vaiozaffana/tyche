@@ -1,11 +1,17 @@
 [project]
-name = "monorepo-template"
+name = "tyche"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["apps/api", "apps/worker", "packages/db", "packages/queue"]
+members = [
+    "apps/api",
+    "apps/worker",
+    "packages/db",
+    "packages/queue",
+    "apps/ai",
+]
 
 [tool.ruff]
 line-length = 100

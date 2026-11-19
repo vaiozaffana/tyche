@@ -54,14 +54,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild tooltip="Platform">
+              <SidebarMenuButton size="lg" asChild tooltip="Tyche">
                 <Link to="/">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
                     <MonitorIcon className="size-4" />
                   </span>
-                  <span className="font-semibold group-data-[collapsible=icon]:hidden">
-                    Platform
-                  </span>
+                  <span className="font-semibold group-data-[collapsible=icon]:hidden">Tyche</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -133,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
-            <span className="text-sm font-medium text-muted-foreground">Platform</span>
+            <span className="text-sm font-medium text-muted-foreground">Tyche</span>
           </div>
           <ThemeSelector />
         </header>

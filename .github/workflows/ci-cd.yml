@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/monorepo_template
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tyche
 
     services:
       postgres:
@@ -30,11 +30,11 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: monorepo_template
+          POSTGRES_DB: tyche
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d monorepo_template"
+          --health-cmd "pg_isready -U postgres -d tyche"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -79,7 +79,7 @@ jobs:
         run: moon run api:build worker:build web:build web:bundle-check
 
       - name: Build API and worker container image
-        run: docker build --tag monorepo-template-python:ci .
+        run: docker build --tag tyche-python:ci .
 
   cd:
     name: Deployment placeholder

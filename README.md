@@ -1,6 +1,11 @@
-# Monorepo Template
+# Tyche
 
-A Moonrepo workspace with a FastAPI API, React web app, Celery worker, PostgreSQL, and Redis.
+Tyche is a job-search agent project built as a Moonrepo workspace with a FastAPI API,
+React web app, Celery worker, PostgreSQL, and Redis.
+
+The repository currently contains the application foundation only. The job-search feature has
+not been implemented; its authoritative implementation plan is the
+[Job Search Agent MVP ExecPlan](docs/plans/job-search-mvp.md).
 
 ```text
 apps/       api, web, worker

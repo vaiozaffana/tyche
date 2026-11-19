@@ -44,7 +44,7 @@ function DashboardPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <p className="text-sm font-medium text-muted-foreground">Account overview</p>
-            <h1 className="text-3xl font-semibold text-balance">Platform dashboard</h1>
+            <h1 className="text-3xl font-semibold text-balance">Tyche dashboard</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Review your account status and keep your profile ready for user-facing work.
             </p>

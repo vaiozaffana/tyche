@@ -12,8 +12,11 @@ def test_settings_split_client_origins() -> None:
 
 
 def test_production_uses_secure_cookies_unless_explicitly_overridden() -> None:
-    assert Settings(NODE_ENV="production").secure_cookies is True
-    assert Settings(NODE_ENV="production", SESSION_COOKIE_SECURE=False).secure_cookies is False
+    assert Settings.model_construct(node_env="production").secure_cookies is True
+    assert (
+        Settings.model_construct(node_env="production", session_cookie_secure=False).secure_cookies
+        is False
+    )
 
 
 @pytest.mark.parametrize(

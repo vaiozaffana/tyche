@@ -36,7 +36,7 @@ function RegisterPage() {
     <div className="flex min-h-screen flex-col bg-muted/30">
       <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
         <Link to="/" className="font-semibold">
-          Platform
+          Tyche
         </Link>
         <ThemeSelector />
       </header>

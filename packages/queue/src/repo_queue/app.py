@@ -1,14 +1,11 @@
 from collections.abc import Sequence
 
 from celery import Celery
-from celery.result import AsyncResult
-
-from repo_queue.contracts import EXAMPLE_TASK_NAME, ExampleJob
 
 
 def create_celery(redis_url: str, *, include: Sequence[str] = ()) -> Celery:
     app = Celery(
-        "monorepo_template",
+        "tyche",
         broker=redis_url,
         backend=redis_url,
         include=list(include),
@@ -21,8 +18,3 @@ def create_celery(redis_url: str, *, include: Sequence[str] = ()) -> Celery:
         timezone="UTC",
     )
     return app
-
-
-def enqueue_example_job(app: Celery, input: ExampleJob) -> AsyncResult:
-    payload = ExampleJob.model_validate(input).model_dump()
-    return app.send_task(EXAMPLE_TASK_NAME, kwargs={"payload": payload})

@@ -1,25 +1,25 @@
-name: monorepo-template
+name: tyche
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: monorepo-template-postgres
+    container_name: tyche-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: monorepo_template
+      POSTGRES_DB: tyche
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d monorepo_template"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tyche"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: monorepo-template-redis
+    container_name: tyche-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -33,14 +33,14 @@ services:
   api:
     build:
       context: .
-    image: monorepo-template-python
-    container_name: monorepo-template-api
+    image: tyche-python
+    container_name: tyche-api
     restart: unless-stopped
     environment:
       NODE_ENV: "production"
       CLIENT_ORIGINS: "${CLIENT_ORIGINS:-http://localhost:3000}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-false}"
-      DATABASE_URL: "${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/monorepo_template}"
+      DATABASE_URL: "${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/tyche}"
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:
@@ -63,8 +63,8 @@ services:
   worker:
     build:
       context: .
-    image: monorepo-template-python
-    container_name: monorepo-template-worker
+    image: tyche-python
+    container_name: tyche-worker
     restart: unless-stopped
     environment:
       REDIS_URL: "${DOCKER_REDIS_URL:-redis://redis:6379/0}"

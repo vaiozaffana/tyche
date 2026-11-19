@@ -37,7 +37,7 @@ def create_app(
         if engine is not None:
             engine.dispose()
 
-    app = FastAPI(title="Monorepo Template API", lifespan=lifespan)
+    app = FastAPI(title="Tyche API", lifespan=lifespan)
     app.state.settings = settings
     app.add_middleware(
         CORSMiddleware,

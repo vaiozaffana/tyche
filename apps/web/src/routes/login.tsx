@@ -35,14 +35,14 @@ function LoginPage() {
     <div className="flex min-h-screen flex-col bg-muted/30">
       <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
         <Link to="/" className="font-semibold">
-          Platform
+          Tyche
         </Link>
         <ThemeSelector />
       </header>
       <main className="flex flex-1 items-center justify-center px-6 py-12">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Platform login</CardTitle>
+            <CardTitle>Tyche login</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={handleSubmit}>

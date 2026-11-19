@@ -10,9 +10,7 @@ config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
-database_url = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:15432/monorepo_template"
-)
+database_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:15432/tyche")
 config.set_main_option("sqlalchemy.url", normalize_database_url(database_url))
 target_metadata = Base.metadata
 

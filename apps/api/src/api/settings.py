@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
     api_port: int = Field(default=8000, ge=1, le=65535, alias="API_PORT")
     database_url: str = Field(
-        default="postgresql://postgres:postgres@localhost:15432/monorepo_template",
+        default="postgresql://postgres:postgres@localhost:15432/tyche",
         alias="DATABASE_URL",
     )
     client_origins: Annotated[list[str], NoDecode, BeforeValidator(split_origins)] = Field(
