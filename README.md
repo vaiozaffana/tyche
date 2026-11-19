@@ -39,14 +39,16 @@ Run one application with `moon run api:dev`, `moon run web:dev`, or `moon run wo
 
 ## Working guides
 
-Start with [repository rules](docs/README.md), then read the guide for your change:
+Start with [architecture conventions](docs/architecture-convention.md), then
+read the technical rule for your change:
 
-- [Backend](docs/backend.md)
-- [Frontend](docs/frontend.md)
-- [Database](docs/database.md)
-- [Contracts](docs/contracts.md)
-- [Worker](docs/worker.md)
-- [Storage](docs/storage.md)
-- [Deployment](docs/deployment.md)
+- [Technical rules](docs/rules/README.md)
+- [Backend](docs/rules/backend.md)
+- [Frontend](docs/rules/frontend.md)
+- [Database](docs/rules/database.md)
+- [Contracts](docs/rules/contracts.md)
+- [Worker](docs/rules/worker.md)
+- [Storage](docs/rules/storage.md)
+- [Deployment](docs/rules/deployment.md)
 
 Record lasting architectural choices in [decision records](docs/decision/README.md).

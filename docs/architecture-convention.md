@@ -1,14 +1,16 @@
-# Working with this repository
+# Architecture Conventions
 
-Start with the [root README](../README.md). These guides describe ownership and change rules.
+Start with the [root README](../README.md). This page describes the general
+ownership and change conventions for the repository.
 
-- [Backend](backend.md): FastAPI modules, authentication, and runtime dependencies.
-- [Frontend](frontend.md): React routes, features, API calls, and UI state.
-- [Database](database.md): SQLAlchemy models, Alembic migrations, and integration tests.
-- [Contracts](contracts.md): TypeScript/Python public boundaries.
-- [Worker](worker.md): Celery producers, processors, and task lifecycle.
-- [Storage](storage.md): object storage configuration and ownership.
-- [Deployment](deployment.md): Docker, runtime configuration, and Cloudflare publishing.
+- [Technical rules](rules/README.md): index of area-specific rules.
+- [Backend](rules/backend.md): FastAPI modules, authentication, and runtime dependencies.
+- [Frontend](rules/frontend.md): React routes, features, API calls, and UI state.
+- [Database](rules/database.md): SQLAlchemy models, Alembic migrations, and integration tests.
+- [Contracts](rules/contracts.md): TypeScript/Python public boundaries.
+- [Worker](rules/worker.md): Celery producers, processors, and task lifecycle.
+- [Storage](rules/storage.md): object storage configuration and ownership.
+- [Deployment](rules/deployment.md): Docker, runtime configuration, and Cloudflare publishing.
 - [Decisions](decision/README.md): recording and replacing architectural decisions.
 
 ## Common rules
@@ -23,7 +25,7 @@ Start with the [root README](../README.md). These guides describe ownership and 
 
 ## Change workflow
 
-1. Read the relevant guide and accepted decisions.
+1. Read this page, the relevant rule, and accepted decisions.
 2. Update the public contract, owner, and consumers in one change.
 3. Add tests and keep `.env.example` aligned with settings.
 4. Run `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
