@@ -5,13 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [tool.uv.workspace]
-members = [
-    "apps/api",
-    "apps/worker",
-    "packages/db",
-    "packages/queue",
-    "apps/ai",
-]
+members = ["apps/api", "apps/worker", "packages/db", "packages/queue", "apps/ai"]
 
 [tool.ruff]
 line-length = 100
@@ -27,4 +21,8 @@ warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["firecrawl", "firecrawl.*"]
 ignore_missing_imports = true

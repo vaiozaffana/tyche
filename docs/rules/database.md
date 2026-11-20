@@ -5,6 +5,7 @@
 ## Rules
 
 - Define persistence tables in `src/repo_db/models.py`; public API representations belong in application schemas.
+- New feature tables may use SQLModel `table=True` when they bind `metadata = Base.metadata`; callers still use the injected SQLAlchemy `Session`, 2.0-style statements, and one Alembic metadata graph.
 - Preserve quoted table/column names when compatibility with existing template databases matters.
 - Application startup owns the engine. Feature services receive a session.
 - Enforce durable invariants with database constraints and transactions.

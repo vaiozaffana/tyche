@@ -1,5 +1,6 @@
 projects:
   root: "."
+  ai: "apps/ai"
   api: "apps/api"
   web: "apps/web"
   worker: "apps/worker"

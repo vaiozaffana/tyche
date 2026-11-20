@@ -61,22 +61,23 @@ jobs:
         run: >-
           moon run
           root:check-boundaries root:check-env root:lint root:format-check
+          ai:lint ai:format-check
           api:lint api:format-check worker:lint worker:format-check
           db:lint db:format-check queue:lint queue:format-check
 
       - name: Typecheck
         run: >-
           moon run
-          root:typecheck-js api:typecheck worker:typecheck db:typecheck queue:typecheck
+          root:typecheck-js ai:typecheck api:typecheck worker:typecheck db:typecheck queue:typecheck
 
       - name: Test
-        run: moon run root:test-js api:test worker:test
+        run: moon run root:test-js ai:test api:test worker:test
 
       - name: Validate and apply database migrations
         run: moon run db:migration-check db:migrate
 
       - name: Build applications and validate Cloudflare bundle
-        run: moon run api:build worker:build web:build web:bundle-check
+        run: moon run ai:build api:build worker:build web:build web:bundle-check
 
       - name: Build API and worker container image
         run: docker build --tag tyche-python:ci .

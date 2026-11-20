@@ -36,15 +36,19 @@ services:
     image: tyche-python
     container_name: tyche-api
     restart: unless-stopped
+    env_file: .env
     environment:
       NODE_ENV: "production"
       CLIENT_ORIGINS: "${CLIENT_ORIGINS:-http://localhost:3000}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-false}"
       DATABASE_URL: "${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/tyche}"
+      REDIS_URL: "${DOCKER_REDIS_URL:-redis://redis:6379/0}"
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test:
@@ -66,9 +70,13 @@ services:
     image: tyche-python
     container_name: tyche-worker
     restart: unless-stopped
+    env_file: .env
     environment:
+      DATABASE_URL: "${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/tyche}"
       REDIS_URL: "${DOCKER_REDIS_URL:-redis://redis:6379/0}"
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     command: celery -A worker.app:celery_app worker --loglevel=INFO

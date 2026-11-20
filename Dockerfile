@@ -10,6 +10,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY apps/ai/pyproject.toml apps/ai/pyproject.toml
 COPY apps/api/pyproject.toml apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml apps/worker/pyproject.toml
 COPY packages/db/pyproject.toml packages/db/pyproject.toml
@@ -17,6 +18,7 @@ COPY packages/queue/pyproject.toml packages/queue/pyproject.toml
 
 RUN uv sync --frozen --no-dev --all-packages --no-install-workspace
 
+COPY apps/ai apps/ai
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY packages/db packages/db

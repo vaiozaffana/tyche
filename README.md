@@ -3,12 +3,13 @@
 Tyche is a job-search agent project built as a Moonrepo workspace with a FastAPI API,
 React web app, Celery worker, PostgreSQL, and Redis.
 
-The repository currently contains the application foundation only. The job-search feature has
-not been implemented; its authoritative implementation plan is the
-[Job Search Agent MVP ExecPlan](docs/plans/job-search-mvp.md).
+The repository includes an asynchronous job-search MVP. Authenticated users submit a prompt,
+the worker discovers Google Jobs through SerpApi, selectively enriches incomplete postings with
+Firecrawl, and ranks them with guarded Gemini specialists. The authoritative implementation and
+recovery notes remain in the [Job Search Agent MVP ExecPlan](docs/plans/job-search-mvp.md).
 
 ```text
-apps/       api, web, worker
+apps/       ai, api, web, worker
 packages/   contracts, api-client, db, queue, storage, ui
 docs/       working guides and decision records
 ```
@@ -25,9 +26,30 @@ pnpm db:migrate
 pnpm dev
 ```
 
-`pnpm dev` delegates to Moon and starts the API, web app, and Celery worker. Open the web app at `http://localhost:3000`; FastAPI health and docs are at `http://localhost:8000/health` and `http://localhost:8000/docs`. Development PostgreSQL and Redis use ports `15432` and `16379`.
+`pnpm dev` delegates to Moon and starts the API, web app, and Celery worker. `apps/ai`
+is imported by the worker and has no standalone process. Open the web app at
+`http://localhost:3000`; FastAPI health and docs are at `http://localhost:8000/health` and
+`http://localhost:8000/docs`. Development PostgreSQL and Redis use ports `15432` and `16379`.
 
 Run one application with `moon run api:dev`, `moon run web:dev`, or `moon run worker:dev`.
+
+## Job search
+
+The browser UI is intentionally deferred. Use the authenticated polling API:
+
+- `POST /job-searches` with `{"prompt":"..."}` returns `202` and a search ID.
+- `GET /job-searches/{id}` returns status and ranked results for the owner.
+- `GET /job-searches` returns the owner's 20 most recent searches.
+
+For a key-free demo:
+
+```sh
+uv run --package tyche-ai python -m tyche_ai.job_search.cli --fake \
+  "Cari lowongan akuntan pajak di Surabaya seminggu terakhir"
+```
+
+See the [job-search guide](docs/rules/job-search.md) for provider settings, budgets, gates,
+extension rules, and production logging constraints.
 
 ## Common commands
 
@@ -49,6 +71,8 @@ read the technical rule for your change:
 
 - [Technical rules](docs/rules/README.md)
 - [Backend](docs/rules/backend.md)
+- [AI](docs/rules/ai.md)
+- [Job search](docs/rules/job-search.md)
 - [Frontend](docs/rules/frontend.md)
 - [Database](docs/rules/database.md)
 - [Contracts](docs/rules/contracts.md)

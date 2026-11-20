@@ -28,6 +28,10 @@ tasks:
         "../../pyproject.toml",
         "src",
       ]
+  test:
+    command: "uv"
+    args: ["run", "--all-packages", "--all-groups", "pytest"]
+    inputs: ["src/**/*", "tests/**/*", "pyproject.toml"]
   lint-fix:
     command: "uv"
     args:

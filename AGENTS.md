@@ -2,9 +2,10 @@
 
 ## Project Structure
 
-This is a Moonrepo monorepo. Runtime applications live in `apps/`: `api` is the
-FastAPI service, `web` is the React/Vite frontend, and `worker` runs Celery
-tasks. Shared code lives in `packages/`: `contracts` and `api-client` define
+This is a Moonrepo monorepo. Runtime applications live in `apps/`: `ai` owns AI
+orchestration and provider integrations, `api` is the FastAPI service, `web` is
+the React/Vite frontend, and `worker` runs Celery tasks. Shared code lives in
+`packages/`: `contracts` and `api-client` define
 the browser/API boundary, while `db`, `queue`, `storage`, and `ui` provide
 backend, infrastructure, storage, and frontend components. Python tests are in
 each app's `tests/` directory; TypeScript tests sit beside source files as
@@ -14,7 +15,7 @@ each app's `tests/` directory; TypeScript tests sit beside source files as
 
 Before changing code, read `docs/architecture-convention.md`,
 `docs/rules/README.md`, and the rule relevant to the affected area
-(`docs/rules/backend.md`, `docs/rules/frontend.md`,
+(`docs/rules/ai.md`, `docs/rules/backend.md`, `docs/rules/frontend.md`,
 `docs/rules/database.md`, `docs/rules/contracts.md`,
 `docs/rules/worker.md`, `docs/rules/storage.md`, or
 `docs/rules/deployment.md`). Read accepted decision records in

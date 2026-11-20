@@ -26,7 +26,7 @@ Cost-tiered search stays exactly as the product owner defined it:
 
 **Control principle:** LLMs decide _what to look for_ and _how to judge_. Deterministic code decides _whether anything is called, how many times, and in what order_. Gate decisions, budgets, deduplication, and ranking order are never delegated to an LLM, and dynamic specialists receive **no tools** in this MVP (so they cannot trigger paid Firecrawl/SerpApi calls).
 
-How to see it working at the end: with the stack running, `POST /job-searches` with a prompt, poll `GET /job-searches/{id}` until `completed`, and read ranked results; or run the CLI (`python -m worker.processors.job_search.cli "<prompt>"`) which executes the same graph without DB/HTTP.
+How to see it working at the end: with the stack running, `POST /job-searches` with a prompt, poll `GET /job-searches/{id}` until `completed`, and read ranked results; or run the CLI (`uv run --package tyche-ai python -m tyche_ai.job_search.cli --fake "<prompt>"`) which executes the same graph without DB/HTTP.
 
 ### Non-goals (do NOT build)
 
@@ -67,6 +67,7 @@ Gemini 3.8 Flash facts to respect (from Google's docs; re-verify against the liv
 Moonrepo workspace (Node 24, pnpm 10, Python 3.12, uv):
 
 - `apps/api` – FastAPI. Feature code in `src/api/modules/<feature>` (router + service + schemas). Settings in `src/api/settings.py`.
+- `apps/ai` – AI orchestration, provider adapters, deterministic screening, and the offline CLI. It is a workspace package imported by the worker, not a standalone service.
 - `apps/worker` – Celery task registration (`worker/tasks.py`) and broker-independent processors in `apps/worker/src/worker/processors`.
 - `packages/db` – SQLAlchemy models (`src/repo_db/models.py`), engine/session factories, Alembic migrations.
 - `packages/queue` – Celery factory, task names, Pydantic payload/result models (`repo_queue.contracts`), producer helpers.
@@ -90,26 +91,38 @@ Caveat: this plan was written from the repo's README, `AGENTS.md`, and docs, not
 
 ## 4. Progress
 
-- [ ] M0 Orientation, baseline green, three spikes (SQLModel+metadata, Gemini via LangChain, SerpApi/Firecrawl SDKs)
-- [ ] M1 Foundations: `StructuredLLM`, tools (SerpApi, Firecrawl, cache), screening modules
-- [ ] M2 Predefined subagents + registry
-- [ ] M3 Dynamic subagents (spec, guardrails, factory, `job_assessor`)
-- [ ] M4 Parent LangGraph, `Send` fan-out, budgets, CLI
-- [ ] M5 SQLModel tables + Alembic + repository (SQLAlchemy Session)
-- [ ] M6 Queue contract + Celery task + persistence
-- [ ] M7 API endpoints (no frontend)
-- [ ] M8 Docs, env, live coverage probe, final validation
+- [x] M0 Orientation, baseline green, three spikes (SQLModel+metadata, Gemini SDK fallback, SerpApi/Firecrawl contracts). Live provider calls skipped because no provider keys are present.
+- [x] M1 Foundations: `StructuredLLM`, tools (SerpApi, Firecrawl, cache), screening modules
+- [x] M2 Predefined subagents + registry
+- [x] M3 Dynamic subagents (spec, guardrails, factory, `job_assessor`)
+- [x] M4 Parent LangGraph, `Send` fan-out, budgets, CLI
+- [x] M5 SQLModel tables + Alembic + repository (SQLAlchemy Session)
+- [x] M6 Queue contract + Celery task + persistence
+- [x] M7 API endpoints (no frontend)
+- [x] M8 Docs, env, live coverage probe, final validation (probe stopped safely when SerpApi rejected the first request; no live coverage claim)
 
 ## 5. Surprises & Discoveries
 
-(Empty. Record unexpected findings with evidence: SDK signature differences, mypy issues, SQLModel/metadata findings, Gemini structured-output quirks.)
+- **Baseline (2026-11-19):** `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` passed after applying migration `0001_initial` to the Tyche development PostgreSQL database. Old `monorepo-template-dev-{postgres,redis}` containers occupied ports 15432/16379; they were stopped, but their volumes were retained.
+- **Repository reality:** auth uses `CurrentAuthDependency` from `api.dependencies`. The cleaned worker has no task, processor, or DB-session pattern yet, and `repo_queue` currently exports only `create_celery`; M6 must add those surfaces rather than copy an example.
+- **Dedicated AI app:** `apps/ai` was committed as an empty uv member without a lock entry, Moon project, package, or checks. M0 converted it to the tested `tyche-ai` workspace package and made it the owner of AI orchestration; the worker remains the Celery adapter.
+- **SQLModel 0.0.50:** assigning `metadata = Base.metadata` on each `table=True` model registers it in the existing declarative metadata. A scratch proof showed Alembic `compare_metadata` emitted only one `add_table`, the `User.id` foreign key resolved, SQLite and PostgreSQL create/insert/select worked, PostgreSQL DDL/data rolled back cleanly, and strict mypy passed. Alembic should continue using only `Base.metadata`.
+- **Gemini SDK:** `langchain-google-genai` 4.5.1 accepts `thinking_level`, but its request builder always includes `candidate_count=1`; `None` is rejected by validation. `google-genai` 3.6.1 directly produced a structured-output config containing only the system instruction, `maxOutputTokens`, `responseMimeType`, `responseJsonSchema`, and `thinkingConfig.thinkingLevel`. Use the direct SDK fallback. No `GEMINI_API_KEY` was available, so the live structured-output call remains pending.
+- **SerpApi:** current Google Jobs output uses `jobs_results`, `job_id`, `company_name`, `description`, `job_highlights`, `apply_options`, `share_link`, and `detected_extensions` (`posted_at`, `salary`). Pagination is `serpapi_pagination.next_page_token`. `chips=date_posted:<today|3days|week|month>` still exists but Google marks `chips` deprecated. Use typed `httpx` instead of another wrapper. No live key was available.
+- **Firecrawl 4.57.0:** the installed top-level `Firecrawl` client has no `scrape` method despite current docs showing one. The compatible concrete API is `V1FirecrawlApp.scrape_url(url, formats=["markdown"], only_main_content=True, timeout=<ms>) -> V1ScrapeResponse`. Isolate that version-specific call in one adapter. No live key was available.
+- **Firecrawl typing:** `firecrawl-py` 4.57.0 does not publish a `py.typed` marker. Strict mypy therefore uses a narrowly scoped `firecrawl.*` missing-import override; the local adapter Protocol remains typed and tests it with a fake client.
+- **Baseline metadata drift:** the first M5 autogenerate also proposed changing `Account.providerId` from `TEXT` to `VARCHAR(50)` and renaming the existing auth email/token indexes. The 0001 migration is authoritative, so model metadata was aligned to its `TEXT`, `User_email_key`, and `Session_token_key` definitions; the job-search migration contains no auth alterations or drops.
+- **Real Celery delivery (2026-11-20):** with Redis/PostgreSQL dev healthy and `JOB_SEARCH_FAKE_MODE=true`, a `job_search.run` message was delivered to a real Celery worker, completed in about one second, persisted two ordered results, and returned `completed`. The temporary user/search fixture was deleted afterwards; no provider API was called.
+- **Moon layering:** `apps/ai` is physically an app workspace but architecturally an importable library, not a runtime service. Its Moon layer is therefore `library`; this keeps the intended worker-to-AI dependency legal without weakening application-layer constraints globally.
+- **Live SerpApi probe (2026-11-20):** a key was present by M8, but SerpApi rejected the first Stage-1 query. The probe stopped before the 15-query sample, made no Firecrawl/Gemini calls, and produced no coverage claim. Fake-mode acceptance remains authoritative until provider access is corrected.
+- **Full fake-mode acceptance (2026-11-20):** a real FastAPI server, Redis broker, Celery worker, and PostgreSQL database completed two authenticated searches through HTTP. The first returned two ranked results with one page read; the repeat used one cache hit and zero page reads; gibberish ended `failed` with a safe message; and a second user received 404. All temporary users, searches, results, sessions, and demo cache rows were removed afterwards.
 
 ## 6. Decision Log
 
 Pre-made decisions (change only with a recorded reason):
 
 1. **Execution model:** asynchronous. `POST /job-searches` creates a row and enqueues a Celery task; the worker runs the LangGraph graph and persists results; clients poll.
-2. **Code location:** `apps/worker/src/worker/processors/job_search/` (feature logic stays with its owner). API only enqueues and reads DB. No new shared package.
+2. **Code location:** `apps/ai/src/tyche_ai/job_search/` owns the graph, providers, screening, persistence helpers, and CLI. `apps/worker/src/worker/processors/job_search_processor.py` is the thin Celery-facing adapter; the API only enqueues and reads DB. This supersedes the original worker-local layout after the product owner added `apps/ai` as the dedicated AI environment on 2026-11-19.
 3. **Orchestration = LangGraph "custom workflow" parent graph** (fixed topology, conditional edges, `Send` fan-out), **not** an LLM supervisor that calls subagents as tools. Reason: the product requires predictable cost and auditable gates. Subagents are compiled LangGraph subgraphs with isolated typed input/output schemas, invoked from thin parent nodes.
 4. **LLM access behind a `StructuredLLM` Protocol:** `invoke_structured(system: str, user: str, schema: type[T], *, thinking_level, max_output_tokens) -> T`. Default implementation uses `langchain-google-genai` `ChatGoogleGenerativeAI(...).with_structured_output(schema)`; fallback is the `google-genai` SDK if LangChain's wrapper cannot do `gemini-3.8-flash` + `thinking_level`. A `FakeStructuredLLM` (scripted responses keyed by schema) is used in all unit tests. Model id from env `LLM_MODEL` (default `gemini-3.8-flash`); never hardcode it in logic.
 5. **Predefined vs dynamic subagents** are both first-class and tested: see section 7 for the exact split. Dynamic specialists have **no tools** and can only vary prompt, rubric, extraction focus, thinking level (`low|medium` only), and output budget within code-enforced limits.
@@ -123,10 +136,15 @@ Pre-made decisions (change only with a recorded reason):
 13. **Auth:** all endpoints require existing session auth; a search is visible only to its owner (404 for others).
 14. **Retries:** Celery retries only transient failures (network/5xx/429) with bounded backoff; logic/validation errors never retry.
 15. **Degradation, never total failure where avoidable:** planner failure → deterministic default specialist spec; assessor invalid output → one repair retry then an unscored result; Firecrawl failure → keep SerpApi description; only prompt-parse failure or SerpApi failure fails the search.
+16. **Gemini adapter after M0 spike:** use `google-genai` directly behind `StructuredLLM`, superseding the default `langchain-google-genai` implementation in Decision 4. The LangChain wrapper cannot omit `candidate_count` for Gemini 3.8, while the direct SDK supports the required structured JSON schema and `thinking_level` without sampling parameters.
 
 ## 7. Outcomes & Retrospective
 
-(Fill at completion: what works, what was cut, what the live coverage probe showed, cost per search observed.)
+- The complete fake-mode path works through HTTP → Redis → Celery → LangGraph → PostgreSQL, including owner isolation, idempotent processing, cache reuse, budgets, and degraded Firecrawl output.
+- Both required subagent patterns exist: the fixed registry contains four typed subgraphs, while guarded runtime specialists compile per search and receive no tools.
+- The browser UI and TypeScript browser contract remain intentionally deferred. No checkpointer, tracing service, direct job-board scraper, alerting, or scheduling was added.
+- Fake acceptance observed one Serp discovery call, one Firecrawl-equivalent page read, and two assessments for a two-result first search; the repeat used the cache and zero page reads. These are call counts, not paid cost figures.
+- Live source coverage and paid-provider cost remain unknown because SerpApi rejected the first probe request. Gemini and Firecrawl live calls were not attempted; request shapes and failures are covered by fakes.
 
 ---
 
@@ -186,7 +204,7 @@ Each node writes a short entry to `state["run_log"]` (reason codes, counts, spec
 ### 8.3 Module layout
 
 ```
-apps/worker/src/worker/processors/job_search/
+apps/ai/src/tyche_ai/job_search/
   models.py            # ParsedQuery, Candidate, PageContent, JobAssessment, RankedJob, PipelineStats, Budget
   llm.py               # StructuredLLM Protocol, GeminiStructuredLLM, thinking-level mapping
   tools/serp.py        # JobSearchProvider Protocol + SerpApi implementation
@@ -202,7 +220,7 @@ apps/worker/src/worker/processors/job_search/
   cli.py               # run the graph without DB/HTTP; --fake uses fixtures
   cli_probe.py         # live Google Jobs coverage probe (Stage 1 only)
 apps/worker/src/worker/processors/job_search_processor.py   # Celery-facing processor
-apps/worker/tests/job_search/...                            # mirrors the structure
+apps/ai/tests/job_search/...                                # mirrors the structure
 ```
 
 ---
@@ -240,7 +258,7 @@ Implement and unit-test (no network, no Redis):
 
 Tests cover: param building (exact `hl`, `gl`, `chips`), response mapping + URL preference, dedup merge, title filter tables (incl. synonyms), every gate reason code and the completeness boundaries, Firecrawl wrapper failure/blocked handling with a fake HTTP layer, `GeminiStructuredLLM` error classification with a fake client.
 
-Acceptance: `moon run worker:lint worker:format-check worker:typecheck worker:test` passes.
+Acceptance: `moon run ai:lint ai:format-check ai:typecheck ai:test` passes.
 
 ### Milestone 2 – Predefined subagents
 
@@ -267,7 +285,7 @@ Tests: two different `SpecialistSpec`s (e.g. `software` and `finance_accounting`
 - Implement `graph/state.py`, `context.py`, `nodes.py`, `builder.py` per section 8.2. Use `Send` for the fan-out and `max_concurrency` from settings. Use conditional edges for: parse failure → END, "need page 2", "no candidates → finalize".
 - `gate_and_read` iterates filter-passing candidates in order, calls `gate.decide`, then `page_reader` when `scrape=True`, stopping at the Firecrawl budget. Every gate decision is logged at INFO with search id, hashed candidate key, and reason code (no descriptions, no prompts).
 - `rank_and_finalize`: sort by `fit_score` desc (None last), then candidates with salary, then recency; cap to `max_results`; attach `enrichment_status` (`not_needed|scraped|cached|skipped|failed`).
-- `cli.py`: `uv run --package worker python -m worker.processors.job_search.cli "<prompt>" [--fake]` prints a compact table plus stats and the specialist specs used. `--fake` loads fixtures and uses fakes (works with no keys).
+- `cli.py`: `uv run --package tyche-ai python -m tyche_ai.job_search.cli "<prompt>" [--fake]` prints a compact table plus stats and the specialist specs used. `--fake` loads fixtures and uses fakes (works with no keys).
 
 Tests (full graph with fakes and a realistic recorded SerpApi fixture containing 2 duplicates, 1 LinkedIn URL, 1 short description, 1 off-topic title, 1 with salary text, 1 non-IT role):
 
@@ -278,7 +296,7 @@ Tests (full graph with fakes and a realistic recorded SerpApi fixture containing
 - Ranking order and result cap.
 - The compiled graph exposes the expected node names (guards accidental topology changes).
 
-Acceptance: worker checks pass; `--fake` CLI prints a ranked list and stats where `firecrawl_calls` equals the number of `needs_scrape` decisions.
+Acceptance: AI checks pass; `--fake` CLI prints a ranked list and stats where `firecrawl_calls` equals the number of `needs_scrape` decisions.
 
 ### Milestone 5 – SQLModel tables, Alembic, repository
 
@@ -298,7 +316,7 @@ Tests (SQLite): create/load, status transitions, atomic replacement of results, 
 
 1. `packages/queue` (`repo_queue.contracts`): task name `job_search.run` (match naming style), `JobSearchPayload(search_id: str)` (id only; prompt is loaded from the DB), result model, producer helper `enqueue_job_search(search_id)` that validates before `send_task`.
 2. Processor `apps/worker/src/worker/processors/job_search_processor.py` (broker-independent): validate payload; load search; if already `completed`, return (idempotent); mark `running`; build `RunContext` with DB-backed cache; invoke the compiled graph; persist `parsed_query`, `specialist_specs`, `stats`, `run_log`, results; mark `completed`. `PromptParseError` → `failed` with a user-safe Indonesian/English message and **no retry**. Provider exhaustion (SerpApi down, quota) → `failed` with `error_code`. Only transient errors raise for Celery's bounded retry/backoff. Never store secrets or raw provider responses in `error_message`.
-3. Thin decorated task in `worker/tasks.py`. Worker settings gain the variables in section 10 (follow the existing settings pattern; the worker owns its settings).
+3. Thin decorated task in `worker/tasks.py`. AI provider and budget settings live in `apps/ai`; worker settings keep only broker/task execution concerns.
 4. Tests (SQLite + fakes): success persists ordered results; idempotent re-run; parse failure marks failed without retry; Firecrawl failure still completes; budgets respected. Do one manual real-delivery check against Redis (`pnpm dev`, enqueue) and record it in Progress.
 
 ### Milestone 7 – API (no frontend)
@@ -325,7 +343,7 @@ Pydantic response models with camelCase aliases and ISO timestamps; no Zod/api-c
 
 ## 10. Interfaces and Dependencies
 
-New environment variables (worker settings; the API reads only `JOB_SEARCH_MAX_ACTIVE_PER_USER`):
+New environment variables (AI settings; the API reads only `JOB_SEARCH_MAX_ACTIVE_PER_USER`):
 
 ```
 SERPAPI_API_KEY=""
@@ -347,25 +365,36 @@ JOB_SEARCH_SCRAPE_CACHE_TTL_HOURS="24"
 JOB_SEARCH_MAX_ACTIVE_PER_USER="3"
 ```
 
-Python dependencies (add to `apps/worker/pyproject.toml` via uv; commit the lockfile): `langgraph`, `langchain-google-genai` (or `google-genai` if Spike B demands the fallback), `langchain-core`, `serpapi` (or reuse `httpx`), `firecrawl-py` (pinned). `packages/db` adds `sqlmodel`. If a library lacks types under strict mypy, add a narrowly scoped `[[tool.mypy.overrides]]` for that module only and record it in Surprises. No JS dependencies change.
+Python dependencies (add to `apps/ai/pyproject.toml` via uv; commit the lockfile): `langgraph`, `google-genai`, `langchain-core`, `httpx`, and `firecrawl-py` (pinned by `uv.lock`). `packages/db` adds `sqlmodel`. If a library lacks types under strict mypy, add a narrowly scoped `[[tool.mypy.overrides]]` for that module only and record it in Surprises. No JS dependencies change.
 
 Key interfaces that must exist at the end:
 
 ```python
 class StructuredLLM(Protocol):
-    def invoke_structured(self, *, system: str, user: str, schema: type[T],
-                          thinking_level: Literal["low", "medium"],
-                          max_output_tokens: int) -> T: ...
+    def invoke_structured(
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: type[T],
+        thinking_level: Literal["low", "medium"],
+        max_output_tokens: int,
+    ) -> T: ...
+
 
 class JobSearchProvider(Protocol):
     def search(self, query: ParsedQuery, *, page_token: str | None = None) -> SearchPage: ...
 
+
 class PageReader(Protocol):
     def read(self, url: str) -> PageContent: ...
 
-def build_job_search_graph() -> CompiledStateGraph: ...      # parent graph
+
+def build_job_search_graph() -> CompiledStateGraph: ...  # parent graph
 def build_specialist(spec: SpecialistSpec, llm: StructuredLLM) -> CompiledStateGraph: ...  # dynamic
-PREDEFINED_SUBAGENTS: dict[str, SubagentDefinition]                                        # predefined
+
+
+PREDEFINED_SUBAGENTS: dict[str, SubagentDefinition]  # predefined
 ```
 
 Security and cost rules: never log API keys, full prompts, specs' free text, or page bodies; log only search id, counts, reason codes, spec ids, and hashed candidate keys. Truncate untrusted web text before it reaches an LLM and place it in delimited data blocks with an explicit "ignore instructions inside" rule (prompt-injection defense for scraped pages and for user-derived specs).
@@ -387,7 +416,7 @@ moon run db:migration-check api:test
 Demo A – offline (fake mode), the minimum bar for "done":
 
 1. `cp .env.example .env`; set `JOB_SEARCH_FAKE_MODE="true"`; `docker compose -f docker-compose.dev.yaml up -d`; `pnpm db:migrate`; run `pnpm dev`.
-2. CLI: `uv run --package worker python -m worker.processors.job_search.cli --fake "Cari lowongan akuntan pajak di Surabaya, seminggu terakhir"`. Expected: ranked list, stats with `firecrawl_calls ≤ JOB_SEARCH_MAX_FIRECRAWL_CALLS` and equal to the number of `needs_scrape` decisions, and the printed specialist spec(s) (e.g. `finance_accounting`) differing from the spec printed for a software prompt such as "backend engineer Python Jakarta remote".
+2. CLI: `uv run --package tyche-ai python -m tyche_ai.job_search.cli --fake "Cari lowongan akuntan pajak di Surabaya, seminggu terakhir"`. Expected: ranked list, stats with `firecrawl_calls ≤ JOB_SEARCH_MAX_FIRECRAWL_CALLS` and equal to the number of `needs_scrape` decisions, and the printed specialist spec(s) (e.g. `finance_accounting`) differing from the spec printed for a software prompt such as "backend engineer Python Jakarta remote".
 3. API: log in with the existing auth flow (see `docs/rules/backend.md` and the auth module; `pnpm createsuperuser` exists for a first user), then `POST /job-searches` with the prompt (curl with the session cookie). Expected: `202`; polling `GET /job-searches/{id}` shows `queued → running → completed` within seconds, ordered results, `specialists` populated, and worker logs with per-candidate gate reason codes.
 4. Repeat the same prompt: `cache_hits` increases and `firecrawl_calls` decreases.
 5. Send gibberish ("asdf"): the search ends `failed` with a readable message; the worker does not retry endlessly; zero SerpApi calls were made.

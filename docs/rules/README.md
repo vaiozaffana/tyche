@@ -6,6 +6,8 @@ tradeoff. General repository conventions live in
 [`../architecture-convention.md`](../architecture-convention.md).
 
 - [Backend](backend.md): FastAPI modules, authentication, and runtime dependencies.
+- [AI](ai.md): agent orchestration, provider integrations, budgets, and offline fakes.
+- [Job search](job-search.md): pipeline stages, subagents, gates, budgets, and operations.
 - [Frontend](frontend.md): React routes, features, API calls, and UI state.
 - [Database](database.md): SQLAlchemy models, Alembic migrations, and integration tests.
 - [Contracts](contracts.md): TypeScript/Python public boundaries.

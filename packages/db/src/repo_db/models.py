@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -14,10 +14,11 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "User"
+    __table_args__ = (Index("User_email_key", "email", unique=True),)
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     name: Mapped[str] = mapped_column(Text)
-    email: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    email: Mapped[str] = mapped_column(Text)
     email_verified: Mapped[bool] = mapped_column("emailVerified", Boolean, default=False)
     image: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -34,10 +35,11 @@ class User(Base):
 
 class Session(Base):
     __tablename__ = "Session"
+    __table_args__ = (Index("Session_token_key", "token", unique=True),)
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime)
-    token: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    token: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         "createdAt", DateTime, server_default=func.now(), default=utc_now
     )
@@ -59,7 +61,7 @@ class Account(Base):
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     account_id: Mapped[str] = mapped_column("accountId", Text)
-    provider_id: Mapped[str] = mapped_column("providerId", String(50))
+    provider_id: Mapped[str] = mapped_column("providerId", Text)
     user_id: Mapped[str] = mapped_column(
         "userId",
         Text,

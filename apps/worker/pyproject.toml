@@ -2,13 +2,21 @@
 name = "tyche-worker"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["pydantic-settings>=2.10,<3", "repo-queue"]
+dependencies = [
+  "psycopg[binary]>=3.2,<4",
+  "pydantic-settings>=2.10,<3",
+  "repo-db",
+  "repo-queue",
+  "tyche-ai",
+]
 
 [dependency-groups]
 dev = ["mypy>=1.18,<2", "pytest>=8.4,<10", "ruff>=0.12,<1"]
 
 [tool.uv.sources]
+repo-db = { workspace = true }
 repo-queue = { workspace = true }
+tyche-ai = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

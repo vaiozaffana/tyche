@@ -5,6 +5,8 @@ ownership and change conventions for the repository.
 
 - [Technical rules](rules/README.md): index of area-specific rules.
 - [Backend](rules/backend.md): FastAPI modules, authentication, and runtime dependencies.
+- [AI](rules/ai.md): orchestration, provider boundaries, deterministic budgets, and fake mode.
+- [Job search](rules/job-search.md): staged discovery, specialist assessment, persistence, and API polling.
 - [Frontend](rules/frontend.md): React routes, features, API calls, and UI state.
 - [Database](rules/database.md): SQLAlchemy models, Alembic migrations, and integration tests.
 - [Contracts](rules/contracts.md): TypeScript/Python public boundaries.

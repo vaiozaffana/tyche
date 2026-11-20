@@ -26,6 +26,13 @@ class Settings(BaseSettings):
         default="postgresql://postgres:postgres@localhost:15432/tyche",
         alias="DATABASE_URL",
     )
+    redis_url: str = Field(default="redis://localhost:16379/0", alias="REDIS_URL")
+    job_search_max_active_per_user: int = Field(
+        default=3,
+        ge=1,
+        le=20,
+        alias="JOB_SEARCH_MAX_ACTIVE_PER_USER",
+    )
     client_origins: Annotated[list[str], NoDecode, BeforeValidator(split_origins)] = Field(
         default_factory=lambda: ["http://localhost:3000"], alias="CLIENT_ORIGINS"
     )
@@ -36,6 +43,13 @@ class Settings(BaseSettings):
     def validate_database_url(cls, value: str) -> str:
         if urlparse(value).scheme not in {"postgresql", "postgresql+psycopg", "sqlite"}:
             raise ValueError("DATABASE_URL must use PostgreSQL or SQLite.")
+        return value
+
+    @field_validator("redis_url")
+    @classmethod
+    def validate_redis_url(cls, value: str) -> str:
+        if urlparse(value).scheme not in {"redis", "rediss"}:
+            raise ValueError("REDIS_URL must use redis or rediss.")
         return value
 
     @model_validator(mode="after")

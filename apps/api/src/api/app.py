@@ -1,27 +1,37 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from celery import Celery
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from repo_db import create_engine, create_session_factory
+from repo_queue import create_celery
 from sqlalchemy.orm import Session as DatabaseSession
 from sqlalchemy.orm import sessionmaker
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
 from api.modules.auth.router import router as auth_router
+from api.modules.job_search.router import router as job_search_router
 from api.modules.profile.router import router as profile_router
 from api.modules.users.router import router as users_router
 from api.settings import Settings
 
-API_ERROR_CODES = {"unauthorized", "forbidden", "invalid_cursor", "user_not_found"}
+API_ERROR_CODES = {
+    "unauthorized",
+    "forbidden",
+    "invalid_cursor",
+    "too_many_active_searches",
+    "user_not_found",
+}
 
 
 def create_app(
     settings: Settings | None = None,
     session_factory: sessionmaker[DatabaseSession] | None = None,
+    queue_app: Celery | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
 
@@ -39,6 +49,7 @@ def create_app(
 
     app = FastAPI(title="Tyche API", lifespan=lifespan)
     app.state.settings = settings
+    app.state.queue_app = queue_app or create_celery(settings.redis_url)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.client_origins,
@@ -75,6 +86,7 @@ def create_app(
         return {"ok": True, "service": "api"}
 
     app.include_router(auth_router)
+    app.include_router(job_search_router)
     app.include_router(profile_router)
     app.include_router(users_router)
     return app
