@@ -38,8 +38,10 @@ export function createAgentWorker(createAdapter: AdapterFactory = createGeminiCh
       }
 
       try {
+        const abortController = new AbortController();
         const params = await chatParamsFromRequest(request);
         const stream = chat({
+          abortController,
           adapter: createAdapter("gemini-3.8-flash", env.GEMINI_API_KEY),
           agentLoopStrategy: maxIterations(6),
           messages: params.messages,
@@ -50,6 +52,7 @@ export function createAgentWorker(createAdapter: AdapterFactory = createGeminiCh
           tools: serverTools,
         });
         return toServerSentEventsResponse(stream, {
+          abortController,
           headers: { "Cache-Control": "no-cache, no-store" },
         });
       } catch (error) {

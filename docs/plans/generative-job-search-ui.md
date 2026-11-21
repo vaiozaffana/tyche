@@ -236,6 +236,8 @@ are reported separately from static/local checks.
       approval interrupt without starting paid work.
 - [x] Complete Milestone 4: documentation and repository-wide check, typecheck,
       test, and build gates pass.
+- [x] Add transparent agent lifecycle feedback, bounded waiting, retry/stop recovery,
+      explicit tool failures, and request cancellation propagation.
 
 ## 7. Surprises and discoveries
 
@@ -260,6 +262,10 @@ are reported separately from static/local checks.
 - React Strict Mode runs hook cleanup once during development, which stopped the
   Pacer queue before its first item. Starting the idempotent queue after enqueue
   keeps production behavior unchanged and makes development submissions reliable.
+- A single `isLoading` label hid the important distinction between a submitted
+  request with no provider bytes, an active stream, an approval pause, and a
+  terminal failure. The UI now derives one visible status from TanStack AI's
+  lifecycle and stops requests that exceed the bounded response window.
 - Gemini authenticated successfully and a live `explain_search_pipeline` call
   streamed a 200 SSE response into its four-stage generative renderer. A later
   search-approval prompt remained provider-pending for more than four minutes and
@@ -315,9 +321,10 @@ flow. Product-owned AI Elements render text, reasoning, tool output, live runs,
 result collections, and approval decisions without adding a second chat state.
 
 Repository-wide formatting/lint/boundary checks, strict type checks, 83 Python
-tests, 24 TypeScript tests, and all production builds pass. Browser acceptance
+tests, 25 TypeScript tests, and all production builds pass. Browser acceptance
 verified the live SSE server-tool renderer, API requests, responsive widths,
 keyboard focus, reduced motion, exact typography/palette, dark mode, and a clean
-console. Deployment and a paid provider search were intentionally not performed;
-the deterministic SSE fixture covers the approval interrupt without incurring
-external work.
+console. A live provider delay and transient 503 also verified visible elapsed
+feedback, stop/retry recovery, and safe error copy. Deployment and a paid provider
+search were intentionally not performed; the deterministic SSE fixture covers the
+approval interrupt without incurring external work.

@@ -48,19 +48,30 @@ import {
 } from "@tanstack/react-pacer";
 import {
   BotIcon,
+  CheckCircle2Icon,
   CheckIcon,
   CircleAlertIcon,
   Clock3Icon,
   ExternalLinkIcon,
+  LoaderCircleIcon,
+  RotateCcwIcon,
   ShieldCheckIcon,
+  SquareIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClientTools } from "../../../agent/client-tools";
 import { getOpenPostingMessage } from "../../../agent/tools";
 import { jobSearchDetailQueryOptions, jobSearchKeys } from "../hooks/use-job-search";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "./search-results";
+import {
+  AGENT_RESPONSE_TIMEOUT_MS,
+  getAgentFeedback,
+  getFriendlyAgentError,
+  type AgentFeedback,
+  type AgentRunState,
+} from "./agent-feedback";
 
 const agentConnection = fetchServerSentEvents("/api/chat");
 const suggestions = [
@@ -73,6 +84,10 @@ export function AgentWorkspace() {
   const [draft, setDraft] = useState("");
   const [visibleLength, setVisibleLength] = useState(0);
   const [threadId] = useState(() => crypto.randomUUID());
+  const [runState, setRunState] = useState<AgentRunState>({ kind: "idle" });
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const stopReason = useRef<"cancelled" | "timed-out" | null>(null);
   const queryClient = useQueryClient();
   const searchInvalidations = useBatcher(
     () => void queryClient.invalidateQueries({ queryKey: jobSearchKeys.all }),
@@ -84,9 +99,20 @@ export function AgentWorkspace() {
   );
   const chat = useChat({
     connection: agentConnection,
+    onError: (error) => {
+      if (stopReason.current) return;
+      setStartedAt(null);
+      setRunState({ kind: "error", message: getFriendlyAgentError(error) });
+    },
+    onFinish: () => {
+      if (stopReason.current) return;
+      setStartedAt(null);
+      setRunState({ kind: "complete" });
+    },
     threadId,
     tools: clientTools,
   });
+  const { resuming: chatResuming, status: chatStatus, stop: stopChat } = chat;
   const draftTelemetry = useThrottler(setVisibleLength, {
     leading: true,
     trailing: true,
@@ -94,31 +120,97 @@ export function AgentWorkspace() {
   });
   const sendLimiter = useAsyncRateLimiter((prompt: string) => chat.sendMessage(prompt), {
     limit: 6,
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Agent request failed."),
-    onReject: () => toast.error("Please wait before sending another agent request."),
+    onError: (error) => {
+      const message = getFriendlyAgentError(error);
+      setStartedAt(null);
+      setRunState({ kind: "error", message });
+      toast.error(message);
+    },
+    onReject: () => {
+      const message = "Too many requests were sent in one minute. Wait a moment, then retry.";
+      setStartedAt(null);
+      setRunState({ kind: "error", message });
+      toast.error(message);
+    },
     window: 60_000,
   });
   const sendQueue = useAsyncQueuer(
     async (prompt: string) => {
+      stopReason.current = null;
+      setElapsedMs(0);
+      setStartedAt(Date.now());
+      setRunState({ kind: "active" });
       await sendLimiter.maybeExecute(prompt);
     },
     {
       concurrency: 1,
       maxSize: 8,
-      onError: (error) =>
-        toast.error(error instanceof Error ? error.message : "Queued request failed."),
+      onError: (error) => {
+        const message = getFriendlyAgentError(error);
+        setStartedAt(null);
+        setRunState({ kind: "error", message });
+        toast.error(message);
+      },
       started: true,
     },
     (state) => ({ size: state.size }),
   );
 
+  useEffect(() => {
+    const active = chatStatus === "submitted" || chatStatus === "streaming" || chatResuming;
+    if (!active || startedAt === null) return;
+
+    const updateElapsed = () => {
+      const nextElapsed = Date.now() - startedAt;
+      setElapsedMs(nextElapsed);
+      if (nextElapsed < AGENT_RESPONSE_TIMEOUT_MS || stopReason.current) return;
+      stopReason.current = "timed-out";
+      stopChat();
+      setStartedAt(null);
+      setRunState({ kind: "timed-out" });
+    };
+    updateElapsed();
+    const interval = window.setInterval(updateElapsed, 1_000);
+    return () => window.clearInterval(interval);
+  }, [chatResuming, chatStatus, startedAt, stopChat]);
+
+  const feedback = getAgentFeedback({
+    chatStatus: chat.status,
+    elapsedMs,
+    hasInterrupt: chat.interrupts.length > 0,
+    resuming: chat.resuming,
+    runState,
+  });
+
   function enqueue(prompt: string) {
-    sendQueue.addItem(prompt);
-    // StrictMode runs the hook cleanup once during development, which stops the queue.
-    sendQueue.start();
-    setDraft("");
-    setVisibleLength(0);
+    try {
+      setRunState({ kind: "queued" });
+      sendQueue.addItem(prompt);
+      // StrictMode runs the hook cleanup once during development, which stops the queue.
+      sendQueue.start();
+      setDraft("");
+      setVisibleLength(0);
+    } catch (error) {
+      setRunState({ kind: "error", message: getFriendlyAgentError(error) });
+    }
+  }
+
+  function stop() {
+    stopReason.current = "cancelled";
+    chat.stop();
+    setStartedAt(null);
+    setRunState({ kind: "cancelled" });
+  }
+
+  function retry() {
+    stopReason.current = null;
+    setElapsedMs(0);
+    setStartedAt(Date.now());
+    setRunState({ kind: "active" });
+    void chat.reload().catch((error: unknown) => {
+      setStartedAt(null);
+      setRunState({ kind: "error", message: getFriendlyAgentError(error) });
+    });
   }
 
   return (
@@ -141,10 +233,17 @@ export function AgentWorkspace() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="size-1.5 bg-emerald-500" aria-hidden="true" />
-          <span className="font-mono text-[10px] text-muted-foreground">
-            {chat.isLoading ? "Working" : chat.resuming ? "Resuming" : "Ready"}
-          </span>
+          <span
+            className={
+              feedback.active
+                ? "size-1.5 animate-pulse bg-primary"
+                : feedback.kind === "error" || feedback.kind === "timed-out"
+                  ? "size-1.5 bg-destructive"
+                  : "size-1.5 bg-emerald-500"
+            }
+            aria-hidden="true"
+          />
+          <span className="font-mono text-[10px] text-muted-foreground">{feedback.label}</span>
         </div>
       </header>
 
@@ -202,18 +301,23 @@ export function AgentWorkspace() {
                 disabled={!interrupt.canResolve || chat.resuming}
                 interrupt={interrupt}
                 key={interrupt.id}
+                onDecision={() => {
+                  stopReason.current = null;
+                  setElapsedMs(0);
+                  setStartedAt(Date.now());
+                  setRunState({ kind: "active" });
+                }}
               />
             ) : null,
           )}
 
-          {chat.error ? (
-            <div className="flex gap-3 border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-              <CircleAlertIcon className="mt-0.5 size-4 shrink-0" />
-              <div>
-                <p className="font-medium">The agent is unavailable.</p>
-                <p className="mt-1 opacity-80">{chat.error.message}</p>
-              </div>
-            </div>
+          {feedback.kind !== "idle" && feedback.kind !== "approval" ? (
+            <AgentStatusCard
+              elapsedMs={elapsedMs}
+              feedback={feedback}
+              onRetry={retry}
+              onStop={stop}
+            />
           ) : null}
         </ConversationContent>
         <ConversationScrollButton />
@@ -246,7 +350,7 @@ export function AgentWorkspace() {
             <PromptInputSubmit
               disabled={!draft.trim() && !chat.isLoading}
               isStreaming={chat.isLoading}
-              onStop={chat.stop}
+              onStop={stop}
             />
           </PromptInputFooter>
         </PromptInput>
@@ -255,9 +359,77 @@ export function AgentWorkspace() {
   );
 }
 
+function AgentStatusCard({
+  elapsedMs,
+  feedback,
+  onRetry,
+  onStop,
+}: {
+  elapsedMs: number;
+  feedback: AgentFeedback;
+  onRetry: () => void;
+  onStop: () => void;
+}) {
+  const failure = feedback.kind === "error" || feedback.kind === "timed-out";
+  const Icon = failure
+    ? CircleAlertIcon
+    : feedback.kind === "complete"
+      ? CheckCircle2Icon
+      : feedback.active
+        ? LoaderCircleIcon
+        : SquareIcon;
+
+  return (
+    <Message from="activity">
+      <div
+        aria-atomic="true"
+        aria-live={failure ? "assertive" : "polite"}
+        className={
+          failure
+            ? "w-full border border-destructive bg-destructive/10 p-3 text-destructive"
+            : "w-full border bg-background p-3"
+        }
+        role={failure ? "alert" : "status"}
+      >
+        <div className="flex items-start gap-3">
+          <Icon
+            className={`mt-0.5 size-4 shrink-0 ${feedback.active ? "animate-spin text-primary" : ""}`}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-medium">{feedback.title}</p>
+              {feedback.active ? (
+                <span aria-hidden="true" className="font-mono text-[10px] opacity-70">
+                  {Math.floor(elapsedMs / 1_000)}s elapsed
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-sm leading-5 opacity-80">{feedback.description}</p>
+            {(feedback.active && feedback.kind !== "queued") || feedback.canRetry ? (
+              <div className="mt-3 flex gap-2">
+                {feedback.active && feedback.kind !== "queued" ? (
+                  <Button onClick={onStop} size="sm" type="button" variant="outline">
+                    <SquareIcon className="size-3" /> Stop
+                  </Button>
+                ) : null}
+                {feedback.canRetry ? (
+                  <Button onClick={onRetry} size="sm" type="button" variant="outline">
+                    <RotateCcwIcon className="size-3.5" /> Retry
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Message>
+  );
+}
+
 function ApprovalCard({
   disabled,
   interrupt,
+  onDecision,
 }: {
   disabled: boolean;
   interrupt: {
@@ -266,6 +438,7 @@ function ApprovalCard({
     resolveInterrupt: (approved: boolean) => void;
     toolName: string;
   };
+  onDecision: () => void;
 }) {
   const args = asRecord(interrupt.originalArgs);
   const creating = interrupt.toolName === "create_job_search";
@@ -274,7 +447,12 @@ function ApprovalCard({
 
   return (
     <Message from="activity">
-      <div className="w-full border-2 border-primary bg-primary/5 p-4">
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="w-full border-2 border-primary bg-primary/5 p-4"
+        role="status"
+      >
         <div className="flex gap-3">
           <ShieldCheckIcon className="mt-0.5 size-5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
@@ -288,7 +466,10 @@ function ApprovalCard({
             <div className="mt-4 flex gap-2">
               <Button
                 disabled={disabled}
-                onClick={() => interrupt.resolveInterrupt(true)}
+                onClick={() => {
+                  onDecision();
+                  interrupt.resolveInterrupt(true);
+                }}
                 size="sm"
                 type="button"
               >
@@ -296,7 +477,10 @@ function ApprovalCard({
               </Button>
               <Button
                 disabled={disabled}
-                onClick={() => interrupt.resolveInterrupt(false)}
+                onClick={() => {
+                  onDecision();
+                  interrupt.resolveInterrupt(false);
+                }}
                 size="sm"
                 type="button"
                 variant="outline"
@@ -321,16 +505,39 @@ function ToolCallCard({ part }: { part: ToolCallPart }) {
     >
       <ToolHeader name={formatToolName(part.name)} status={status} />
       <ToolContent>
-        <ToolOutput name={part.name} output={part.output} />
+        <ToolOutput part={part} />
       </ToolContent>
     </Tool>
   );
 }
 
-function ToolOutput({ name, output }: { name: string; output: unknown }) {
+function ToolOutput({ part }: { part: ToolCallPart }) {
+  const { name, output } = part;
+  if (part.approval?.approved === false) {
+    return (
+      <ToolSection label="Decision">
+        <p>The action was denied. Nothing requiring this approval was started.</p>
+      </ToolSection>
+    );
+  }
+  if (part.state === "error") {
+    return (
+      <ToolSection label="Result">
+        <p className="text-destructive">
+          This action failed before a successful result was returned.
+        </p>
+      </ToolSection>
+    );
+  }
   if (output === undefined) {
     return (
-      <p className="border-t pt-3 text-sm text-muted-foreground">Waiting for the tool to finish.</p>
+      <p className="border-t pt-3 text-sm text-muted-foreground">
+        {part.state === "approval-requested"
+          ? "Waiting for your approval below."
+          : part.state === "approval-responded"
+            ? "Decision received. Waiting for the action to continue."
+            : "The action is still in progress."}
+      </p>
     );
   }
 
@@ -433,6 +640,16 @@ function ToolOutput({ name, output }: { name: string; output: unknown }) {
 
 function LiveRun({ searchId }: { searchId: string }) {
   const search = useQuery(jobSearchDetailQueryOptions(searchId));
+  if (search.isError) {
+    return (
+      <ToolSection label="Search run">
+        <p className="text-destructive">The persisted search status could not be loaded.</p>
+        <Button className="mt-3" onClick={() => void search.refetch()} size="sm" variant="outline">
+          <RotateCcwIcon className="size-3.5" /> Retry status
+        </Button>
+      </ToolSection>
+    );
+  }
   if (!search.data)
     return (
       <ToolSection label="Search run">
