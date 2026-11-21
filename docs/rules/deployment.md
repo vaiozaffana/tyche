@@ -26,4 +26,18 @@ VITE_API_URL="https://api.example.com" pnpm deploy:web
 
 `VITE_API_URL` is embedded at build time. Allow the deployed web origin in `CLIENT_ORIGINS`.
 
+The Cloudflare Worker serves the SPA and handles `/api/chat` before static assets. Configure the
+agent secret without placing it in `wrangler.jsonc` or a `VITE_*` variable:
+
+```sh
+pnpm --filter @repo/web exec wrangler secret put GEMINI_API_KEY
+```
+
+The browser never receives this key. A missing secret returns `503` from `/api/chat`; search,
+history, profile, and authentication continue to use FastAPI through `VITE_API_URL`.
+
+For local `pnpm dev`, Vite reads `GEMINI_API_KEY` from the repository root `.env` only during
+the serve command. Production builds do not load that local value or copy `.env`/`.dev.vars`
+into `dist`; Cloudflare must receive the secret through Wrangler as shown above.
+
 CI installs pinned Moon toolchains, checks both languages, applies migrations to PostgreSQL, validates the Cloudflare bundle, and builds the Python container. The CD job remains an explicit placeholder.

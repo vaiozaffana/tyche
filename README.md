@@ -3,10 +3,12 @@
 Tyche is a job-search agent project built as a Moonrepo workspace with a FastAPI API,
 React web app, Celery worker, PostgreSQL, and Redis.
 
-The repository includes an asynchronous job-search MVP. Authenticated users submit a prompt,
-the worker discovers Google Jobs through SerpApi, selectively enriches incomplete postings with
-Firecrawl, and ranks them with guarded Gemini specialists. The authoritative implementation and
-recovery notes remain in the [Job Search Agent MVP ExecPlan](docs/plans/job-search-mvp.md).
+The repository includes an asynchronous job-search product. Authenticated users collaborate with a
+generative UI agent, approve a precise search brief, watch the persisted run, and inspect ranked
+matches. The worker discovers Google Jobs through SerpApi, selectively enriches incomplete postings
+with Firecrawl, and ranks them with guarded Gemini specialists. The implementation plans are the
+[Job Search Agent MVP](docs/plans/job-search-mvp.md) and
+[Generative Job Search UI](docs/plans/generative-job-search-ui.md).
 
 ```text
 apps/       ai, api, web, worker
@@ -35,7 +37,9 @@ Run one application with `moon run api:dev`, `moon run web:dev`, or `moon run wo
 
 ## Job search
 
-The browser UI is intentionally deferred. Use the authenticated polling API:
+Open the authenticated web workspace at `http://localhost:3000`. The UI agent validates a brief,
+requires approval before starting paid work, renders tool-specific UI, and synchronizes these API
+resources through TanStack Query:
 
 - `POST /job-searches` with `{"prompt":"..."}` returns `202` and a search ID.
 - `GET /job-searches/{id}` returns status and ranked results for the owner.
@@ -50,6 +54,10 @@ uv run --package tyche-ai python -m tyche_ai.job_search.cli --fake \
 
 See the [job-search guide](docs/rules/job-search.md) for provider settings, budgets, gates,
 extension rules, and production logging constraints.
+
+The web Worker needs `GEMINI_API_KEY` for `/api/chat`. Search history and result pages still work
+when the agent secret is absent. In Cloudflare, configure it with `wrangler secret put` as described
+in the [deployment guide](docs/rules/deployment.md); never expose it as `VITE_*`.
 
 ## Common commands
 

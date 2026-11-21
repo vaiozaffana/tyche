@@ -18,5 +18,7 @@
     "lib": "@repo/ui/lib",
     "hooks": "@repo/ui/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@ai-elements": "https://ai-sdk.dev/elements/api/registry/{name}.json"
+  }
 }

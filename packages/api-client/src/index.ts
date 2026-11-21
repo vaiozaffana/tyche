@@ -1,17 +1,30 @@
+import axios, { AxiosError, type AxiosInstance } from "axios";
+import {
+  jobSearchCreateInputSchema,
+  jobSearchCreatedSchema,
+  jobSearchDetailSchema,
+  jobSearchListSchema,
+  type JobSearchCreateInput,
+} from "@repo/contracts/job-search";
 import {
   profileResponseSchema,
   type ProfileUser,
   type UpdateProfileInput as ProfileUpdateInput,
 } from "@repo/contracts/profile";
 
-export type ApiClient = { baseUrl: string };
+export type ApiClient = AxiosInstance;
 export type LoginInput = { email: string; password: string };
 export type RegisterInput = LoginInput & { name: string };
 export type SessionUser = ProfileUser;
 export type UpdateProfileInput = ProfileUpdateInput;
 
 export function createApiClient(baseUrl: string): ApiClient {
-  return { baseUrl: baseUrl.replace(/\/$/, "") };
+  return axios.create({
+    adapter: "fetch",
+    baseURL: baseUrl.replace(/\/$/, ""),
+    headers: { "Content-Type": "application/json" },
+    withCredentials: true,
+  });
 }
 
 export class UnauthorizedApiError extends Error {
@@ -22,65 +35,82 @@ export class UnauthorizedApiError extends Error {
 }
 
 export async function fetchSessionUser(client: ApiClient) {
-  const response = await request(client, "/session");
-  if (response.status === 401) throw new UnauthorizedApiError();
-  await assertOk(response, "Failed to load current user.");
-  return profileResponseSchema.parse(await response.json()).user;
+  try {
+    return profileResponseSchema.parse((await client.get("/session")).data).user;
+  } catch (error) {
+    throw mapApiError(error, "Failed to load current user.", true);
+  }
 }
 
 export async function loginWithEmail(client: ApiClient, input: LoginInput) {
-  const response = await request(client, "/api/auth/sign-in/email", {
-    body: JSON.stringify(input),
-    method: "POST",
-  });
-  await assertOk(response, "Authentication failed.");
-  return profileResponseSchema.parse(await response.json()).user;
+  try {
+    return profileResponseSchema.parse((await client.post("/api/auth/sign-in/email", input)).data)
+      .user;
+  } catch (error) {
+    throw mapApiError(error, "Authentication failed.");
+  }
 }
 
 export async function registerWithEmail(client: ApiClient, input: RegisterInput) {
-  const response = await request(client, "/api/auth/sign-up/email", {
-    body: JSON.stringify(input),
-    method: "POST",
-  });
-  await assertOk(response, "Registration failed.");
-  return profileResponseSchema.parse(await response.json()).user;
+  try {
+    return profileResponseSchema.parse((await client.post("/api/auth/sign-up/email", input)).data)
+      .user;
+  } catch (error) {
+    throw mapApiError(error, "Registration failed.");
+  }
 }
 
 export async function logoutCurrentUser(client: ApiClient) {
-  const response = await request(client, "/api/auth/sign-out", { method: "POST" });
-  await assertOk(response, "Failed to log out.");
+  try {
+    await client.post("/api/auth/sign-out");
+  } catch (error) {
+    throw mapApiError(error, "Failed to log out.");
+  }
 }
 
 export async function updateCurrentUserProfile(client: ApiClient, input: UpdateProfileInput) {
-  const response = await request(client, "/profile", {
-    body: JSON.stringify(input),
-    method: "PATCH",
-  });
-  if (response.status === 401) throw new UnauthorizedApiError();
-  await assertOk(response, "Failed to update profile.");
-  return profileResponseSchema.parse(await response.json()).user;
-}
-
-function request(client: ApiClient, path: string, init: RequestInit = {}) {
-  const headers = new Headers(init.headers);
-  if (init.body) headers.set("Content-Type", "application/json");
-  return fetch(`${client.baseUrl}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
-}
-
-async function assertOk(response: Response, fallback: string) {
-  if (response.ok) return;
-  let data: unknown;
   try {
-    data = await response.json();
-  } catch {
-    throw new Error(fallback);
+    return profileResponseSchema.parse((await client.patch("/profile", input)).data).user;
+  } catch (error) {
+    throw mapApiError(error, "Failed to update profile.", true);
   }
-  if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string") {
-    throw new Error(data.detail);
+}
+
+export async function createJobSearch(client: ApiClient, input: JobSearchCreateInput) {
+  try {
+    const body = jobSearchCreateInputSchema.parse(input);
+    return jobSearchCreatedSchema.parse((await client.post("/job-searches", body)).data);
+  } catch (error) {
+    throw mapApiError(error, "Failed to start job search.", true);
   }
-  throw new Error(fallback);
+}
+
+export async function fetchJobSearch(client: ApiClient, searchId: string) {
+  try {
+    return jobSearchDetailSchema.parse((await client.get(`/job-searches/${searchId}`)).data);
+  } catch (error) {
+    throw mapApiError(error, "Failed to load job search.", true);
+  }
+}
+
+export async function fetchJobSearches(client: ApiClient) {
+  try {
+    return jobSearchListSchema.parse((await client.get("/job-searches")).data).searches;
+  } catch (error) {
+    throw mapApiError(error, "Failed to load job searches.", true);
+  }
+}
+
+function mapApiError(error: unknown, fallback: string, mapUnauthorized = false): Error {
+  if (mapUnauthorized && error instanceof AxiosError && error.response?.status === 401) {
+    return new UnauthorizedApiError();
+  }
+  if (error instanceof AxiosError) {
+    const data: unknown = error.response?.data;
+    if (data && typeof data === "object") {
+      if ("detail" in data && typeof data.detail === "string") return new Error(data.detail);
+      if ("error" in data && typeof data.error === "string") return new Error(data.error);
+    }
+  }
+  return error instanceof Error && !(error instanceof AxiosError) ? error : new Error(fallback);
 }

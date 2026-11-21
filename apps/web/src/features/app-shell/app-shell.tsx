@@ -20,7 +20,7 @@ import {
 import { toast } from "@repo/ui/components/sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboardIcon, LogOutIcon, MonitorIcon, UserRoundIcon } from "lucide-react";
+import { BriefcaseBusinessIcon, LogOutIcon, SparklesIcon, UserRoundIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { meQueryOptions, useLogoutMutation } from "../auth/hooks/use-auth";
 import { ThemeSelector } from "@repo/ui/components/theme-selector";
@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const navItems = [
-    { icon: LayoutDashboardIcon, label: "Dashboard", to: "/" },
+    { icon: BriefcaseBusinessIcon, label: "Job search", to: "/" },
     { icon: UserRoundIcon, label: "Edit profile", to: "/profile" },
   ] as const;
 
@@ -56,10 +56,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild tooltip="Tyche">
                 <Link to="/">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
-                    <MonitorIcon className="size-4" />
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+                    <SparklesIcon className="size-4" />
                   </span>
-                  <span className="font-semibold group-data-[collapsible=icon]:hidden">Tyche</span>
+                  <span className="font-display text-lg font-semibold group-data-[collapsible=icon]:hidden">
+                    Tyche
+                  </span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -128,14 +130,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background/90 px-4 backdrop-blur">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
-            <span className="text-sm font-medium text-muted-foreground">Tyche</span>
+            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              Search operations
+            </span>
           </div>
           <ThemeSelector />
         </header>
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-8 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </SidebarInset>

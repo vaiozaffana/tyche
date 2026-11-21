@@ -1,6 +1,7 @@
 # Contracts
 
-Public browser contracts use Zod in `packages/contracts`; FastAPI validates the same boundary with Pydantic models. `packages/api-client` owns credentialed fetch calls and response parsing.
+Public browser contracts use Zod in `packages/contracts`; FastAPI validates the same boundary with
+Pydantic models. `packages/api-client` owns credentialed Axios calls and response parsing.
 
 ## Rules
 
@@ -10,5 +11,7 @@ Public browser contracts use Zod in `packages/contracts`; FastAPI validates the 
 - Keep `packages/contracts` browser-safe; it cannot import applications or server infrastructure.
 - Treat an omitted profile image as “preserve” and explicit empty/null as “clear.”
 - Add a focused boundary test when parsing or error mapping changes.
+- Keep job-search status, nullable result fields, URL validation, and list/detail shapes aligned
+  across Pydantic and Zod. Agent tool outputs reuse these schemas rather than duplicating them.
 
 Cross-language generation is intentionally not included: the template has a small stable surface, and code generation would add more machinery than the current contracts require. If the API grows substantially, generate the TypeScript client from FastAPI OpenAPI rather than adding handwritten duplicates.

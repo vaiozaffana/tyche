@@ -13,6 +13,8 @@ LangGraph workflow and providers, and `packages/db` owns the three persisted tab
 4. Deterministic code deduplicates and filters titles.
 5. `page_reader` calls Firecrawl only for matching jobs with incomplete descriptions, cache first.
 6. Runtime `job_assessor` subgraphs score jobs without tools; deterministic code ranks and caps them.
+7. The web UI polls the persisted run and renders ranked results. Its TanStack AI loop may create or
+   inspect runs through the authenticated API, but cannot call search or page-reading providers.
 
 The predefined team is exactly `query_analyst`, `specialist_planner`, `job_scout`, and
 `page_reader`. Dynamic specialists may vary only their allowlisted role family, rubric, extraction
@@ -35,7 +37,8 @@ The PostgreSQL scrape cache defaults to 24 hours.
   add routing and malicious-spec tests.
 - Swap providers by implementing `StructuredLLM`, `JobSearchProvider`, or `PageReader` and injecting
   it into `RunContext`. Keep cost gates outside provider and LLM code.
-- Do not add tool-calling loops without a new decision record and thought-signature handling.
+- Do not add tool-calling loops inside this paid workflow without a new decision record and
+  thought-signature handling. The separately bounded UI loop is covered by decision 0005.
 
 ## Running and testing
 
@@ -46,7 +49,8 @@ uv run --package tyche-ai python -m tyche_ai.job_search.cli_probe
 ```
 
 The probe performs 15 Stage-1 calls only when `SERPAPI_API_KEY` exists; otherwise it exits safely.
-No frontend, Zod contract, or TypeScript API client is included in this MVP.
+The React workspace, Zod contracts, and Axios client expose this workflow to authenticated users.
+They do not own provider budgets or ranking.
 
 Log search IDs, counts, hashed candidate keys, spec IDs, and reason codes only. Never log keys,
 session tokens, prompts, descriptions, page bodies, or free-text specialist fields. User prompts and

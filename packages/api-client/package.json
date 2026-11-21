@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@repo/contracts": "workspace:*"
+    "@repo/contracts": "workspace:*",
+    "axios": "^1.21.1"
   },
   "devDependencies": {
     "typescript": "catalog:",
